@@ -1,0 +1,6 @@
+#!/bin/bash
+issued_coin=$(curl -s http://explorer.pengolincoin.xyz:17898/get_generated_coins | jq -r '.alreadyGeneratedCoins')
+echo "Content-type: text/plain"
+echo ""
+awk "BEGIN {printf \"%.8f\n\", $issued_coin/100000000}"
+exit 0

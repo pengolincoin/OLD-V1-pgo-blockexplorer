@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1">
+    <title>PengolinCoin network statistics and blockchain explorer</title>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.6.3/jquery.timeago.min.js" integrity="sha256-3S5uFNXUTbSzidUyam/9OVgDhJ2Yx1rmb6F+Ju3/6WE=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
+    <script defer src="https://use.fontawesome.com/releases/v5.0.9/js/all.js" integrity="sha384-8iPTk2s/jMVj81dnzb/iFR2sdA7u06vHJyyLlAd4snFpCl/SnyUjRrbdJsw1pGIl" crossorigin="anonymous"></script>
+    <link href="css/styles.css" rel="stylesheet">
+    <script src="config.js"></script>
+</head>
+<body>
+    <header class="navbar navbar-expand-md navbar-dark fixed-top">
+        <a class="navbar-brand" href="./#" data-page="home.html">
+            <img class="logo-small img-fluid" src="images/64x64.png" alt="PGO logo">
+            PengolinCoin Explorer
+        </a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarToggler"
+                aria-controls="navbarToggler" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarToggler">
+            <ul class="navbar-nav mr-auto mt-2 mt-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link hot_link" href="./#" data-page="home.html"><i class="fa fa-home"></i>
+                        Home<span class="sr-only">(current)</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link hot_link" href="./#blockchain" data-page="blockchain.html"><i
+                            class="fa fa-cubes"></i> Blockchain</a>
+                </li>
+		<!--
+                <li class="nav-item">
+                    <a class="nav-link hot_link" href="./#market" data-page="market.html"><i class="fas fa-th-list"></i>
+                        Market</a>
+                </li>
+		-->
+                <li class="nav-item">
+			<!--<a class="nav-link hot_link" href="./#pools" data-page="pools.html"><i class="fas fa-tasks"></i> Pools</a>-->
+			<a class="nav-link hot_link" href="https://miningpoolstats.stream/pengolincoin" target="_blank"><i class="fas fa-tasks"></i> Pools</a>
+                </li>
+                <!--
+		<li class="nav-item">
+                    <a class="nav-link hot_link" href="./#stats" data-page="stats.html"><i class="fas fa-chart-area"></i>
+                        Statistics</a>
+                </li>
+		-->
+                <li style="display:none;">
+                    <a class="hot_link" href="./#block" data-page="block.html">block
+                    </a>
+                </li>
+                <li style="display:none;">
+                    <a class="hot_link" href="./#transaction" data-page="transaction.html" >transaction
+                    </a>
+                </li>
+                <li style="display:none;">
+                    <a class="hot_link" href="./#pool_transaction" data-page="pool_transaction.html">pool transaction
+                    </a>
+                </li>
+            </ul>
+            <div id="stats_updated"><i class="fas fa-sync fa-spin"></i></div>
+        </div>
+    </header>
+<div class="container-fluid">
+    <div id="page"></div>
+    <div class="wrapper">
+        <p id="loading"><i class="fas fa-sync fa-spin"></i></p>
+    </div>
+</div>
+<footer class="footer">
+    Block explorer for PengolinCoin : <a target="_blank" href="https://github.com/pengolincoin/pgo-blockexplorer"><i
+        class="fab fa-github-square"></i> PengolinCoin explorer</a>
+    open sourced under the <a href="http://www.gnu.org/licenses/gpl-2.0.html">GPL</a>
+</footer>
+<div id="alert_placeholder"></div>
+<script>
+    jQuery.timeago.settings.strings.seconds = '%d seconds';
+
+    $(function () {
+        getLastMinedBlockHeader();
+    });
+
+    // 1 Get last mined block header
+    var xhrGetLastMinedBlockHeader;
+    function getLastMinedBlockHeader() {
+        if (xhrGetLastMinedBlockHeader) xhrGetLastMinedBlockHeader.abort();
+        xhrGetLastMinedBlockHeader = $.ajax({
+            timeout: 5000,
+            url: api + '/json_rpc',
+            method: "POST",
+            data: JSON.stringify({
+                jsonrpc: "2.0",
+                id: "1",
+                method: "getlastblockheader"
+            }),
+            dataType: 'json',
+            cache: 'false'
+        })
+            .done(function (data) {
+                if (data.hasOwnProperty('result')) {
+                    lastMinedBlockHeader = data.result;
+                    routePage(fetchLiveLastMinedBlockHeader);
+                } else {
+                    showalert('alert-danger', 'Core error : ', data.error.message);
+                    $('#loading').hide();
+                }
+            })
+
+            .fail(function (xhrGetLastMinedBlockHeader, textStatus) {
+                if (textStatus != "abort") {
+                    showalert('alert-danger', 'Can\'t connect to api : ', textStatus);
+                    $('#loading').hide();
+                    routePage();
+                }
+            });
+    }
+
+    // Route callback
+    var xhrFetchLastMinedBlockHeader;
+
+    function fetchLiveLastMinedBlockHeader() {
+        if (xhrFetchLastMinedBlockHeader) xhrFetchLastMinedBlockHeader.abort();
+        pulseLiveUpdate();
+        xhrFetchLastMinedBlockHeader = $.ajax({
+            timeout: 5000,
+            url: api + '/json_rpc',
+            method: "POST",
+            data: JSON.stringify({
+                jsonrpc: "2.0",
+                id: "1",
+                method: "getlastblockheader"
+            }),
+            dataType: 'json',
+            cache: 'false'
+        })
+            .done(function (data) {
+                if (data.hasOwnProperty('result')) {
+                    lastMinedBlockHeader = data.result;
+                    currentPage.update();
+                } else {
+                    showalert('alert-danger', 'Core error : ', data.error.message);
+                    $('#loading').hide();
+                }
+            })
+            .always(function () {
+                refreshAll = setTimeout(function () {
+                    console.log('global polling tick');
+                    fetchLiveLastMinedBlockHeader();
+                }, 60000);
+            })
+            .fail(function (xhrFetchLastMinedBlockHeader, textStatus) {
+                if (textStatus != "abort") {
+                    showalert('alert-danger', 'Can\'t connect to api : ', textStatus);
+                    $('#loading').hide();
+                }
+            });
+    }
+
+    var xhrPageLoading;
+    var currentPage;
+
+    // page router
+    // todo : remover url get variable when not necessary
+    function routePage(loadedCallback) {
+        if (currentPage) currentPage.destroy();
+        $('#page').html('');
+        $('#loading').show();
+        if (xhrPageLoading) xhrPageLoading.abort();
+        $('.hot_link').parent().removeClass('active');
+        $link = $('a.hot_link[href="./' + (window.location.hash || '#') + '"]');
+        $link.parent().addClass('active');
+        page = $link.data('page');
+        xhrPageLoading = $.ajax({
+            url: page,
+            cache: false
+        })
+            .done(function (data) {
+                $('#page').show().html(data);
+                currentPage.init();
+                if (loadedCallback) loadedCallback();
+            })
+            .fail(function (xhrPageLoading, textStatus) {
+                if (textStatus != "abort") {
+                    showalert('alert-danger', 'Can\'t find page : ', page);
+                    $('#loading').hide();
+                }
+            });
+    }
+
+    // show working icon
+    function pulseLiveUpdate() {
+        const stats_update = document.getElementById('stats_updated');
+        stats_update.style.transition = 'opacity 100ms ease-out';
+        stats_update.style.opacity = 1;
+        setTimeout(function () {
+            stats_update.style.transition = 'opacity 10000ms linear';
+            stats_update.style.opacity = 0;
+        }, 100);
+    }
+
+    // update text by id
+    function updateText(e, t) {
+        // console.log("e: " + e + " t: " + t); //debug updatetext
+        let el = document.getElementById(e);
+        if(el != null){
+            if (el.textContent !== t) {
+                el.textContent = t;
+            }
+        }
+    }
+
+    function updateTextLinkable(e, t){
+        let el = document.getElementById(e);
+        if(el != null) {
+            if (el.innerHTML !== t) {
+                el.innerHTML = t;
+            }
+        }
+    }
+
+    // handle url hash click
+    window.onhashchange = function () {
+        routePage();
+    };
+
+    // transform raw amount by readble (+ symbol)
+    function getReadableCoins(coins, digits, withoutSymbol) {
+        var amount = (parseInt(coins || 0) / coinUnits).toFixed(digits || coinUnits.toString().length - 1);
+        return amount + (withoutSymbol ? '' : (' ' + symbol));
+    }
+
+    // do I have to explain ?
+    function getReadableHashRateString(h) {
+        let i = 0;
+        let byteUnits = [' H/s', ' kH/s', ' MH/s', ' GH/s', ' TH/s', ' PH/s'];
+        while (h > 1000) {
+            h = h / 1000;
+            i++;
+        }
+        return h.toFixed(2) + byteUnits[i];
+    }
+
+
+    // idem for numbers (+symbol)
+    function shortenLargeNumber(num, digits, withoutSymbol) {
+        var units = ['k', 'M'], decimal;
+
+        for (let i = units.length - 1; i >= 0; i--) {
+            decimal = Math.pow(1000, i + 1);
+            if (num <= -decimal || num >= decimal) {
+                return +(num / decimal).toFixed(digits) + units[i] + (withoutSymbol ? '' : (' ' + symbol));
+            }
+        }
+        return num + (withoutSymbol ? '' : (' ' + symbol));
+    }
+
+    function formatDate(time) {
+        if (!time) return '';
+        return new Date(parseInt(time) * 1000).toLocaleString();
+    }
+
+    function getBlockchainUrl(id) {
+        return blockchainExplorer.replace('{id}', id);
+    }
+
+    function formatBlockLink(hash) {
+        return '<a href="' + getBlockchainUrl(hash) + '">' + hash + '</a>';
+    }
+
+    function getTransactionUrl(id) {
+        return transactionExplorer.replace('{id}', id);
+    }
+
+    function formatPaymentLink(hash){
+        return '<a href="' + getTransactionUrl(hash) + '">' + hash + '</a>';
+    }
+
+    urlParam = function(name){
+        let results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+        if (results==null){
+            return null;
+        } else {
+            return results[1] || 0;
+        }
+    };
+
+    // trigger alert
+    function showalert(alerttype, title, message) {
+        $('#alert_placeholder').append('<div class="alert ' + alerttype + ' alert-dismissible fade show center-block" role="alert">' +
+            '<h2>' + title + '</h2><br>' + message +
+            '<span class="close" data-dismiss="alert" aria-label="Close""><i class="fas fa-times-circle"></i></span>' +
+            '</div>').show();
+
+        // $('#alert_placeholder').show();
+        setTimeout(function () {
+            $(".alert").fadeOut("slow");
+        }, 4000);
+        setTimeout(function () {
+            $(".alert").remove();
+            $('#alert_placeholder').hide();
+        }, 5000);
+    }
+    //close menu on mobile
+    $('.navbar-nav>li>a').on('click', function(){
+        $('.navbar-collapse').collapse('hide');
+    });
+
+</script>
+</body>
+</html>
